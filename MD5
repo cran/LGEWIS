@@ -1,0 +1,15 @@
+89882734b5cc2f53cad68ee5b4fc7316 *DESCRIPTION
+f0ef963ee49ab0bc55e8e9739737f26c *NAMESPACE
+0745f11856cdfa5b1d823a82f81458d0 *R/GA.R
+b7f20ba296667b10673abe9d02bae18e *R/GEI.R
+9620bb6a7e839acc0e36bd0e1f155002 *R/Main_SSD.R
+78a6eab9c39cfc8bbeb6f99e1ab4f8fe *data/LGEWIS.example.rda
+790cf5c85deb903d58e5639eca2421f8 *man/GA.SSD.All.Rd
+3eedbf2cf1ab8bbb4ec5844c5b295557 *man/GA.SSD.OneSet_SetIndex.Rd
+a05de32b89938c91c3b19da5981ba49d *man/GA.prelim.Rd
+2cffc2c1b31f42dd378af21fb3814cd1 *man/GA.test.Rd
+46a895ede225364ba59c67507c54f83c *man/GEI.SSD.All.Rd
+b4bad0e2f5eda08b40a2141433b9920f *man/GEI.SSD.OneSet_SetIndex.Rd
+fbe0940c306d475666b4adee37d679cd *man/GEI.prelim.Rd
+230009204a7146e24e82cf945e19a8ca *man/GEI.test.Rd
+f2e61050b2713fd4dc60b40180c0f1e0 *man/LGEWIS_example.Rd
