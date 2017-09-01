@@ -1,4 +1,4 @@
 #exportPattern("^[[:alpha:]]+")
 export(GA.prelim,GA.test,GA.SSD.OneSet_SetIndex,GA.SSD.All,GEI.prelim,GEI.test,GEI.SSD.OneSet_SetIndex,GEI.SSD.All)
-import(CompQuadForm, SKAT, geeM, pls, splines)
-importFrom("stats", "cor", "lm", "rbinom", "gaussian", "pchisq", "quantile", "sd", "var")
+import(CompQuadForm, SKAT, geeM, splines, mvtnorm)
+importFrom("stats", "cor", "lm", "rbinom", "gaussian", "pchisq", "quantile", "sd", "var", "dbeta", "dchisq", "integrate", "qchisq","qnorm")

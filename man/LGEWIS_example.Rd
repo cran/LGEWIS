@@ -5,7 +5,18 @@
 Data example for LGEWIS (tests for genetic association or gene-environment interaction)
 }
 \description{
-The dataset contains outcome variable Y, covariate X, environmental exposure E, time, and genotype data Z. The first column in time is the subject ID and the second column is the measured exam. Y, X, E and time are all in long form. Z is a genotype matrix where each row corresponds to one subject.
+Example data for LGEWIS.
+}
+\format{
+  LGEWIS.example contains the following objects:
+  \describe{
+    \item{G}{a numeric genotype matrix of 10 individuals and 20 SNPs.
+	Each row represents a different individual, and each column represents a different SNP marker.}
+    \item{Y}{a numeric vector of continuous phenotypes of 10 individuals with 4 repeated measurements.}
+    \item{time}{a numeric matrix. The first column is the subject ID and the second column is the measured exam.}
+    \item{X}{a numeric matrix of 1 covariates.}
+    \item{E}{a numeric vector of environmental exposure.}
+  }
 }
 \usage{data(LGEWIS.example)}
 %\format{

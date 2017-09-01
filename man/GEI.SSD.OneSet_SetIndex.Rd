@@ -32,9 +32,10 @@ If the users would like to compare with the MinP test, this parameter specify th
 Other options of the generalized score type test. Defined same as in function "GEI.test()".
 }
 }
-%\details{
+\details{
+Please see SKAT vignettes for using SSD files.
 %%  ~~ If necessary, more details than the description above ~~
-%}
+}
 \value{
   \item{p.value}{
 P-value of the set based generalized score type test.
@@ -75,75 +76,6 @@ number of tested SNPs in the SNP set.
 %\seealso{
 %% ~~objects to See Also as \code{\link{help}}, ~~~
 %}
-\examples{
-
-# * Since the Plink data files used here are hard to be included in a R package,
-# The usage is marked by "#" to pass the package check.
-
-# library(LGEWIS)
-
-##############################################
-
-# Plink data files: File.Bed, File.Bim, File.Fam
-# Files defining the sets: File.SetID, File.SSD, File.Info
-# For longitudinal data, outcome and covariates are saved in a separate file: Y, time, X, E.
-# Preliminary work was done using function null.LGRF.
-
-# Create the MW File
-# File.Bed<-"./example.bed"
-# File.Bim<-"./example.bim"
-# File.Fam<-"./example.fam"
-# File.SetID<-"./example.SetID"
-# File.SSD<-"./example.SSD"
-# File.Info<-"./example.SSD.info"
-
-# Generate SSD file
-# To use binary ped files, you have to generate SSD file first.
-# If you already have a SSD file, you do not need to call this function.
-# Generate_SSD_SetID(File.Bed, File.Bim, File.Fam, File.SetID, File.SSD, File.Info)
-
-# SSD.INFO<-Open_SSD(File.SSD, File.Info)
-# Number of samples
-# SSD.INFO$nSample
-# Number of Sets
-# SSD.INFO$nSets
-
-## Fit the null model
-# Y: outcomes, n by 1 matrix where n is the total number of observations
-# X: covariates, n by p matrix
-# E: covariates, n by 1 matrix
-# time: describe longitudinal structure, n by 2 matrix
-# result.prelim<-GEI.prelim(Y,time,E,X=X)
-
-## Test a single region
-# out_single<-GEI.SSD.OneSet_SetIndex(SSD.INFO=SSD.INFO,
-# SetIndex=3, result.prelim=result.prelim,MinP.adjust=0.95)
-
-# Example result
-# out_single
-# $n.marker
-# [1] 108
-
-# $E.df
-# [1] 22
-
-# $G.df
-# [1] 22
-
-# $p.single
-#           MAF      p.value
-# SNP0254 0.098 5.920758e-01
-# SNP0273 0.091 9.468959e-01
-# SNP0199 0.118 4.131540e-01
-# ...
-
-# $p.MinP
-# [1] 3.876731e-05
-
-# $p.value
-# [1] 0.1167991
-
-}
 % Add one or more standard keywords, see file 'KEYWORDS' in the
 % R documentation directory.
 \keyword{plink_test_single}

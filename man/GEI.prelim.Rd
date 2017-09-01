@@ -73,12 +73,14 @@ library(LGEWIS)
 # G: genotype matrix, m by q matrix where m is the total number of subjects
 
 data(LGEWIS.example)
-Y<-LGEWIS.example$Y;time<-LGEWIS.example$time;
-E<-LGEWIS.example$E;X<-LGEWIS.example$X;G<-LGEWIS.example$G
+Y<-LGEWIS.example$Y
+X<-LGEWIS.example$X
+E<-LGEWIS.example$E
+time<-LGEWIS.example$time
+G<-LGEWIS.example$G
 
 # Preliminary data management
 result.prelim<-GEI.prelim(Y,time,E,X=X)
-
 }
 
 \keyword{preliminary work}

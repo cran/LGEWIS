@@ -24,7 +24,6 @@ An n*p covariates matrix where p is the total number of covariates.
   \item{corstr}{
 The working correlation as specified in 'geeglm'. The following are permitted: "independence", "exchangeable", "ar1".
 }
-
 }
 %\details{
 %%  ~~ If necessary, more details than the description above ~~
@@ -62,11 +61,13 @@ library(LGEWIS)
 # G: genotype matrix, m by q matrix where m is the total number of subjects
 
 data(LGEWIS.example)
-Y<-LGEWIS.example$Y;time<-LGEWIS.example$time;X<-LGEWIS.example$X;G<-LGEWIS.example$G
+Y<-LGEWIS.example$Y
+X<-LGEWIS.example$X
+time<-LGEWIS.example$time
+G<-LGEWIS.example$G
 
 # Preliminary data management
 result.prelim<-GA.prelim(Y,time,X=X)
-
 }
 
 \keyword{preliminary work}

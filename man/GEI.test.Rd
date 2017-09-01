@@ -23,7 +23,7 @@ Genetic variants in the target region/gene, an m*q matrix where m is the subject
 The subject id corresponding to the genotype matrix, an m dimensional vector. This is in order to match the phenotype and genotype matrix. The default is NULL, where the order is assumed to be matched with Y, X and time.
 }
   \item{G.method}{
-The dimension reduction method for main effect adjustment of G. The following are permitted: "wPCA" for weighted principal component analysis; "PCA" for principal component analysis; "PLS" for partial least square regression; "R2" for ordering the principal components by their R-squares. The dimension reduction method is in order to analyze large regions, i.e., the number of variants is close to or larger than the number of subjects. The default is "wPCA".
+The dimension reduction method for main effect adjustment of G. The following are permitted: "wPCA" for weighted principal component analysis; "PCA" for principal component analysis; "R2" for ordering the principal components by their R-squares. The dimension reduction method is in order to analyze large regions, i.e., the number of variants is close to or larger than the number of subjects. The default is "wPCA".
 }
   \item{G.df}{
 Number of components selected by the dimension reduction method. The default is sqrt(m).
@@ -97,8 +97,11 @@ library(LGEWIS)
 # G: genotype matrix, m by q matrix where m is the total number of subjects
 
 data(LGEWIS.example)
-Y<-LGEWIS.example$Y;time<-LGEWIS.example$time;
-E<-LGEWIS.example$E;X<-LGEWIS.example$X;G<-LGEWIS.example$G
+Y<-LGEWIS.example$Y
+X<-LGEWIS.example$X
+E<-LGEWIS.example$E
+time<-LGEWIS.example$time
+G<-LGEWIS.example$G
 
 # Preliminary data management
 result.prelim<-GEI.prelim(Y,time,E,X=X)
@@ -111,7 +114,6 @@ result<-GEI.test(result.prelim,G,MinP.adjust=0.95)
 
 # test with the MinP test and the small sample adjustment
 result<-GEI.test(result.prelim,G,MinP.adjust=0.95,bootstrap=1000)
-
 }
 % Add one or more standard keywords, see file 'KEYWORDS' in the
 % R documentation directory.

@@ -3,8 +3,6 @@
 #   Hypothesis Testing
 #########################
 
-#p.s: the current code is only for a single environmental exposure
-
 GA.prelim<-function(Y,time,X=NULL,corstr="exchangeable"){
   ##Preliminary
   Y<-as.matrix(Y);N<-nrow(Y)
@@ -26,19 +24,44 @@ GA.prelim<-function(Y,time,X=NULL,corstr="exchangeable"){
     nullgee<-geem(Y~1,family=gaussian,corstr=corstr,id=time[,1])
   }
 
+  phi<-as.numeric(nullgee$phi)
+  rho<-as.numeric(nullgee$alpha);N<-nrow(time) #add the intercept
+  cluster.id<-unique(time[,1]);m<-length(cluster.id)
+
+  n.total<-1;n.rep<-as.numeric(table(time[,1]))
+  V<-matrix(0,N,N);V.inv<-matrix(0,N,N);V.invsqrt<-matrix(0,N,N)
+  for (i in 1:m)
+  {
+    ni<-n.rep[i]
+    index<-n.total:(n.total+ni-1)
+    n.total<-n.total + ni
+    #working covariance matrix
+    if (corstr=="exchangeable"){Vi<-diag(1-rho,ni)+ matrix(rho, ni, ni);Vi<-phi*Vi;Vi.inv<-solve(Vi);Vi.invsqrt<-Get.inv.sqrt(Vi)}
+    if (corstr=="ar1"){Vi<-rho^abs(outer(time[index,2], time[index,2],"-"));Vi<-phi*Vi;Vi.inv<-solve(Vi);Vi.invsqrt<-Get.inv.sqrt(Vi)}
+    if (corstr=="independence"){Vi<-diag(1,ni);Vi<-phi*Vi;Vi.inv<-solve(Vi);Vi.invsqrt<-Get.inv.sqrt(Vi)}
+    V[index,index]<-Vi;V.inv[index,index]<-Vi.inv;V.invsqrt[index,index]<-Vi.invsqrt
+    #if (link=="logit"){Ci<-mu[index]*(1-mu[index]);Vi.inv<-outer(sqrt(Ci),sqrt(Ci)^-1,"*")*Vi.inv}
+  }
+  X0<-cbind(rep(1,N),Z.A)
+  #P<-diag(1,N)-X0%*%solve(t(X0)%*%V.inv%*%X0)%*%(t(X0)%*%V.inv)
+  P1<-t(X0)%*%V.inv;P2<-X0%*%solve(P1%*%X0)
+
   #prepare the intermediate results
-  result.prelim<-list(Y=Y,time=time,X=X,cluster.id=cluster.id,m=m,corstr=corstr,Z.A=Z.A,nullgee=nullgee)
+  result.prelim<-list(Y=Y,time=time,X=X,cluster.id=cluster.id,m=m,corstr=corstr,Z.A=Z.A,nullgee=nullgee,V=V,V.inv=V.inv,V.invsqrt=V.invsqrt,P1=P1,P2=P2)
   return(result.prelim)
 }
 
 #G is an m*q matrix, each row coresponds to one subject.
-GA.test<-function(result.prelim,G,Gsub.id=NULL,bootstrap=NULL,MinP.adjust=NULL,impute.method='fixed'){
+GA.test<-function(result.prelim,G,Gsub.id=NULL,weights='beta',B=5000,B.coef=NULL,impute.method='fixed'){
   ## Load preliminary data
   Y<-result.prelim$Y;corstr<-result.prelim$corstr
   m<-result.prelim$m;X<-result.prelim$X
   time<-result.prelim$time;cluster.id<-result.prelim$cluster.id
   Z.A<-result.prelim$Z.A #Z.A0=svd(cbind(rep(1,N),X, M.E))$u
-  nullgee<-result.prelim$nullgee
+  nullgee<-result.prelim$nullgee;N<-nrow(time)
+  mu<-colSums(nullgee$beta*t(cbind(rep(1,N),Z.A)));Y.res<-Y-mu
+  V<-result.prelim$V;V.inv<-result.prelim$V.inv;V.invsqrt<-result.prelim$V.invsqrt
+  P1<-result.prelim$P1;P2<-result.prelim$P2
 
   ## Deal with the genotype
   SNP.list<-colnames(G)
@@ -54,11 +77,20 @@ GA.test<-function(result.prelim,G,Gsub.id=NULL,bootstrap=NULL,MinP.adjust=NULL,i
     warning(msg,call.=F)
     G<-Impute(G,impute.method)
   }
-  # centered genotype
+  # genotype
   G<-as.matrix(G);center.G<-t(t(G)-colMeans(G))
   MAF<-colMeans(as.matrix(G[,colMeans(center.G^2)!=0]))/2;MAF[MAF>0.5]<-1-MAF[MAF>0.5]
-  G<-as.matrix(center.G[,colMeans(center.G^2)!=0]);n.G<-ncol(G)
+  G<-as.matrix(G[,colMeans(center.G^2)!=0])
   SNP.name<-SNP.list[colMeans(center.G^2)!=0]
+
+  if(length(weights)>1){G<-t(t(G)*weights[colMeans(center.G^2)!=0])}
+  if(length(weights)==1){
+    if(weights=="rare"){G<-G[,MAF<0.05];SNP.name<-SNP.name[MAF<0.05];MAF<-MAF[MAF<0.05]}
+    if(weights=="common"){G<-G[,MAF>0.05];SNP.name<-SNP.name[MAF>0.05];MAF<-MAF[MAF>0.05]}
+    if(weights=="beta"){weights<-dbeta(MAF,1,25);G<-t(t(G)*weights)}
+  }
+  G<-as.matrix(G)
+
   if(ncol(G) == 0){
     msg<-sprintf("G does not include any heterozygous variant")
     stop(msg)
@@ -66,57 +98,57 @@ GA.test<-function(result.prelim,G,Gsub.id=NULL,bootstrap=NULL,MinP.adjust=NULL,i
 
   # generate long form genotype
   Z<-as.matrix(G[match(time[,1],cluster.id),])
+  Z<-Z-P2%*%(P1%*%Z)
+  n.G<-ncol(Z)
 
-  if(length(bootstrap)==0){
-    # calculate score
-    GA.fit<-GA.Score(nullgee,Y,time,Z.A,Z,corstr) #Z.A does not include the intercept
-    # calculate score statistics and their covariance matrix
-    score<-GA.fit$score;M<-GA.fit$M
-    # calculate p-value
-    TestStat<-t(score)%*%score
-    EigenM<-eigen(M,symmetric=TRUE,only.values=TRUE)$values
-    p.value<-davies(TestStat,EigenM)$Qq
+  GA.fit<-GA.bootstrap(nullgee,Y,time,Z.A,Z,corstr,B,B.coef) #Z.A does not include the intercept
+  score<-GA.fit$score;B.score<-t(GA.fit$B.score)
+  #V<-GA.fit$V;V.inv<-GA.fit$V.inv
 
-    # implement a single SNP based analysis by GEE score tests
-    p.single<-cbind(MAF,as.vector(pchisq(as.vector(score)^2/diag(M),df=1,lower.tail=F)))
-    colnames(p.single)<-c('MAF','p.value')
-    rownames(p.single)<-SNP.name
-  }else{
-    # calculate score
-    GA.fit<-GA.bootstrap(nullgee,Y,time,Z.A,Z,corstr,bootstrap) #Z.A does not include the intercept
-    score<-GA.fit$score;perturb.score<-GA.fit$perturb.score
-    Q<-t(score)%*%score
-    # calculate bootstrap based mean, variance and kurtosis
-    perturb.Q<-apply(perturb.score^2,2,sum)
-    perturb.mean<-mean(perturb.Q)
-    perturb.variance<-var(perturb.Q)
-    perturb.kurtosis<-mean((perturb.Q-perturb.mean)^4)/perturb.variance^2-3
-    # calculate p.value
-    if (perturb.kurtosis>0){df<-12/perturb.kurtosis}else{
-      df<-100000
-    }
-    p.value<-1-pchisq((Q-perturb.mean)*sqrt(2*df)/sqrt(perturb.variance)+df,df)
-    # implement a single SNP based analysis by GEE score tests
-    perturb.variance.single<-apply(perturb.score,1,var)
-    p.single<-cbind(MAF,as.vector(pchisq(as.vector(score)^2/perturb.variance.single,df=1,lower.tail=F)))
-    colnames(p.single)<-c('MAF','p.value')
-    rownames(p.single)<-SNP.name
+  Q1<-sum(score^2);Q2<-sum(score)^2
+  re.Q1<-apply(B.score^2,1,sum);re.Q2<-apply(B.score,1,sum)^2
+
+  #cauculated resampled p-values using resampled test statistics
+  #rho.class<-c(0, 0.1^2, 0.2^2, 0.3^2, 0.5^2, 0.5, 1)
+  rho.class<-c(0,1)
+
+  all.p<-matrix(0,B+1,length(rho.class))
+  for (rho in rho.class){
+    Q.rho<-(1-rho)*Q1+rho*Q2#(1-rho)*Q1+rho*Q2
+    re.Q.rho<-(1-rho)*re.Q1+rho*re.Q2
+    all.p[,which(rho.class==rho)]<-Get.p(as.matrix(c(Q.rho,re.Q.rho)),as.matrix(re.Q.rho))
   }
-  if(length(MinP.adjust)!=0){
-    eigen.G<-eigen(cor(G),only.values=TRUE)$values
-    me.G<-effect.n(eigen.G,MinP.adjust)
-    p.MinP<-min(min(p.single[,2])*me.G,1)
-  }else{p.MinP<-NA}
+  re.p<-all.p[-1,] # resampled p-values
+  temp.p<-all.p[1,] # p-values
 
-  return(list(n.marker=n.G,p.single=p.single,p.MinP=p.MinP,p.value=p.value))
+  ###
+  #   Combine p-values using Fisher's method
+  ###
+  p.Fisher<-FCombine.p(temp.p,re.p)
+  ###
+  #   Combine p-values using MinP method
+  ###
+  p.MinP<-MCombine.p(temp.p,re.p)
+
+  p.value<-matrix(c(temp.p,p.Fisher,p.MinP),1,length(rho.class)+2)
+  colnames(p.value)<-c(rho.class,'Fisher','MinP')
+
+  # implement a single SNP based analysis by GEE score tests
+  B.variance.single<-apply(B.score,2,var)
+  p.single<-cbind(MAF,as.vector(pchisq(as.vector(score)^2/B.variance.single,df=1,lower.tail=F)))
+  colnames(p.single)<-c('MAF','p.value')
+  rownames(p.single)<-SNP.name
+
+  return(list(n.marker=n.G,p.value=p.value,p.single=p.single))
 }
 
 #################################################
 #   Calculate Score Statistics and their Variance
 #################################################
 
-GA.bootstrap<-function(nullgee,Y,time,Z.A,Z.I,corstr,bootstrap) #Z.A does not include the intercept
+GA.bootstrap<-function(nullgee,Y,time,Z.A,Z.I,corstr,B,B.coef) #Z.A does not include the intercept
 {
+  phi<-as.numeric(nullgee$phi)
   rho<-as.numeric(nullgee$alpha);N<-nrow(time);Z.A<-cbind(rep(1,N),Z.A) #add the intercept
   mu<-colSums(nullgee$beta*t(Z.A));Y.res<-Y-mu
   #rho<-nullgee$geese$alpha;mu<-nullgee$fitted.values;Y.res<-Y-mu
@@ -124,69 +156,61 @@ GA.bootstrap<-function(nullgee,Y,time,Z.A,Z.I,corstr,bootstrap) #Z.A does not in
   ##Generalized score test
   score.array<-matrix(0,dimI,m)
   n.total<-1;n.rep<-as.numeric(table(time[,1]))
+  #V<-matrix(0,N,N);V.inv<-matrix(0,N,N)
   for (i in 1:m)
   {
     ni<-n.rep[i]
     index<-n.total:(n.total+ni-1)
     n.total<-n.total + ni
     #working covariance matrix
-    if (corstr=="exchangeable"){Vi<-diag(1-rho,ni)+ matrix(rho, ni, ni);Vi.inv<-solve(Vi)}
-    if (corstr=="ar1"){Vi<-rho^abs(outer(time[index,2], time[index,2],"-"));Vi.inv<-solve(Vi)}
-    if (corstr=="independence"){Vi<-diag(1,ni);Vi.inv<-Vi}
+    if (corstr=="exchangeable"){Vi<-diag(1-rho,ni)+ matrix(rho, ni, ni);Vi<-phi*Vi;Vi.inv<-solve(Vi)}
+    if (corstr=="ar1"){Vi<-rho^abs(outer(time[index,2], time[index,2],"-"));Vi<-phi*Vi;Vi.inv<-solve(Vi)}
+    if (corstr=="independence"){Vi<-diag(1,ni);Vi<-phi*Vi;Vi.inv<-solve(Vi)}
+    #V[index,index]<-Vi;V.inv[index,index]<-Vi.inv
     #if (link=="logit"){Ci<-mu[index]*(1-mu[index]);Vi.inv<-outer(sqrt(Ci),sqrt(Ci)^-1,"*")*Vi.inv}
     #score matrices
     Z.Ii<-Z.I[index,];if (ni==1) {Z.Ii<-t(Z.Ii)}
-    score.array[,i]<-t(Z.Ii)%*%(Vi.inv%*%Y.res[index])/sqrt(m)
+    score.array[,i]<-t(Z.Ii)%*%(Vi.inv%*%Y.res[index,])/sqrt(m)
   }
   score<-as.matrix(apply(score.array,1,sum))
   # null distribution
-  perturb.coef<-matrix(rbinom(m*bootstrap,1,0.5)*2-1,m,bootstrap)
-  perturb.score<-score.array%*%perturb.coef
+  if(length(B.coef)==0){B.coef<-matrix(rbinom(m*B,1,0.5)*2-1,m,B)}
+  B.score<-score.array%*%B.coef
 
-  return(list(score=score,perturb.score=perturb.score))#Q: test statistic; M: covariance matrix
+  return(list(score=score,B.score=B.score))#Q: test statistic; M: covariance matrix
 }
 
-GA.Score<-function(nullgee,Y,time,Z.A,Z.I,corstr) #Z.A does not include the intercept
-{
-  rho<-as.numeric(nullgee$alpha);N<-nrow(time);Z.A<-cbind(rep(1,N),Z.A) #add the intercept
-  mu<-colSums(nullgee$beta*t(Z.A));Y.res<-Y-mu
-  #rho<-nullgee$geese$alpha;mu<-nullgee$fitted.values;Y.res<-Y-mu
-  cluster.id<-unique(time[,1]);m<-length(cluster.id)
-  ##Generalized score test
-  dimY<-nrow(Y.res);dimA<-ncol(Z.A);dimI<-ncol(Z.I);score<-matrix(0,dimI,1)
-  An<-matrix(0,dimA+dimI,dimA+dimI);Bn<-matrix(0,dimA+dimI,dimA+dimI)
-  n.total<-1;n.rep<-as.numeric(table(time[,1]))
-  for (i in 1:m)
-  {
-    ni<-n.rep[i]
-    index<-n.total:(n.total+ni-1)
-    n.total<-n.total + ni
-    #working covariance matrix
-    if (corstr=="exchangeable"){Vi<-diag(1-rho,ni)+ matrix(rho, ni, ni);Vi.inv<-solve(Vi)}
-    if (corstr=="ar1"){Vi<-rho^abs(outer(time[index,2], time[index,2],"-"));Vi.inv<-solve(Vi)}
-    if (corstr=="independence"){Vi<-diag(1,ni);Vi.inv<-Vi}
-    #if (link=="logit"){Ci<-mu[index]*(1-mu[index]);Vi.inv<-outer(sqrt(Ci),sqrt(Ci)^-1,"*")*Vi.inv}
-    #score matrices
-    Z.Ai<-Z.A[index,];Z.Ii<-Z.I[index,]
-    if (ni==1) { Z.Ai<-t(Z.Ai); Z.Ii<-t(Z.Ii)}
-    Zi<-cbind(Z.Ii,Z.Ai)
-    #An<-An+t(Zi)%*%Vi.inv%*%Zi
-    An[(dimI+1):(dimI+dimA),(dimI+1):(dimI+dimA)]<-An[(dimI+1):(dimI+dimA),(dimI+1):(dimI+dimA)]+t(Z.Ai)%*%Vi.inv%*%Z.Ai
-    An[1:dimI, (dimI+1):(dimI+dimA)]<-An[1:dimI, (dimI+1):(dimI+dimA)]+t(Z.Ii)%*%(Vi.inv%*%Z.Ai)
-    Bntemp<-t(Zi)%*%(Vi.inv%*%Y.res[index])
-    Bn<-Bn+Bntemp%*%t(Bntemp)
-    score<-score+Bntemp[1:dimI,]#t(Z.Ii)%*%Vi.inv%*%Y.res[index]
+#cauculated p-values using resampled test statistics
+Get.p<-function(Q,re.Q){ #Q a A*q matrix of test statistics, re.Q a B*q matrix of resampled test statistics
+  re.mean<-apply(re.Q,2,mean)
+  re.variance<-apply(re.Q,2,var)
+  re.kurtosis<-apply((t(re.Q)-re.mean)^4,1,mean)/re.variance^2-3
+  re.df<-(re.kurtosis>0)*12/re.kurtosis+(re.kurtosis<=0)*100000
+  re.p<-t(1-pchisq((t(Q)-re.mean)*sqrt(2*re.df)/sqrt(re.variance)+re.df,re.df))
+  return(re.p)
+}
+
+# combine p-values
+FCombine.p<-function(p,re.p){ #re.p: a B*b*c array; function to combine multiple p-values
+  Fisher.stat<--2*sum(log(p))
+  re.Fisher<--2*apply(log(re.p),1,sum);re.Fisher[re.Fisher==Inf]<-NA
+  Fisher.mean<-mean(re.Fisher,na.rm=T)
+  Fisher.variance<-var(re.Fisher,na.rm=T)
+  Fisher.kurtosis<-mean((re.Fisher-Fisher.mean)^4,na.rm=T)/Fisher.variance^2-3
+  if (Fisher.kurtosis>0){df<-12/Fisher.kurtosis}else{
+    df<-100000
   }
-  An<-An/m; Bn<-Bn/m
-  #Calculate p-value
-  A00<-An[(dimI+1):(dimI+dimA),(dimI+1):(dimI+dimA)];A00.inv<-solve(A00);A10<-An[1:dimI, (dimI+1):(dimI+dimA)]
-  B11<-Bn[1:dimI,1:dimI];B10<-Bn[1:dimI,(dimI+1):(dimI+dimA)];B00<-Bn[(dimI+1):(dimI+dimA),(dimI+1):(dimI+dimA)]
-  P<-A10%*%A00.inv;M<-B11-t(B10%*%t(P))-B10%*%t(P)+P%*%B00%*%t(P)
-  #Revise the covariance matrix using m-q
-  M<-M*m/(m-dimA)
-  #Revise the score using standard representation
-  score<-score/sqrt(m)
-  return(list(score=score,M=M))#Q: test statistic; M: covariance matrix
+  p.combined<-1-pchisq((Fisher.stat-Fisher.mean)*sqrt(2*df)/sqrt(Fisher.variance)+df,df)
+  return(p.combined)
+}
+
+MCombine.p<-function(p,re.p){ #re.p: a b*c matrix; function to combine multipla p-values for a minP test
+  MinP.stat<-min(p)#;re.p[re.p==1]<-0.99
+  re.Normal<-qnorm(re.p);re.Normal[re.Normal==Inf]<-NA
+  D<-cor(re.Normal,use='complete.obs')
+  #diag(D)<-1
+  p.combined<-as.numeric(1-pmvnorm(lower=rep(qnorm(MinP.stat),length(p)),sigma=D))
+  return(p.combined)
 }
 
 # calculate number of independent tests
@@ -226,7 +250,7 @@ Get.inv.sqrt<-function(A){
   a.eig <- eigen(A,symmetric=TRUE)
   ID1<-which(a.eig$values > 0)
   if(length(ID1)== 0){stop("Error to obtain matrix square!")}
-  a.sqrt <- a.eig$vectors[,ID1] %*% diag(sqrt(a.eig$values[ID1])^-2) %*% t(a.eig$vectors[,ID1])
+  a.sqrt <- a.eig$vectors[,ID1] %*% diag(sqrt(a.eig$values[ID1])^-1,length(ID1)) %*% t(a.eig$vectors[,ID1])
   return(a.sqrt)
 }
 #Time similarity
@@ -273,6 +297,7 @@ Impute<-function(Z, impute.method){
   }
   return(as.matrix(Z))
 }
+
 
 
 

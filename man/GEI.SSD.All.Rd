@@ -28,9 +28,10 @@ If the users would like to compare with the MinP test, this parameter specify th
 Other options of the generalized score type test. Defined same as in function "GEI.test()".
 }
 }
-%\details{
+\details{
+Please see SKAT vignettes for using SSD files.
 %%  ~~ If necessary, more details than the description above ~~
-%}
+}
 \value{
   \item{results}{
 Results of the set based analysis. First column contains the set ID; Second column (second and third columns when the MinP test is compared) contains the p-values; Last column contains the number of tested SNPs.
@@ -60,72 +61,6 @@ Results of the single variant analysis for all variants in the sets. First colum
 %\seealso{
 %% ~~objects to See Also as \code{\link{help}}, ~~~
 %}
-\examples{
-
-# * Since the Plink data files used here are hard to be included in a R package,
-# The usage is marked by "#" to pass the package check.
-
-# library(LGEWIS)
-
-##############################################
-
-# Plink data files: File.Bed, File.Bim, File.Fam
-# Files defining the sets: File.SetID, File.SSD, File.Info
-# For longitudinal data, outcome and covariates are saved in a separate file: Y, time, X, E.
-# Preliminary work was done using function null.LGRF.
-
-# Create the MW File
-# File.Bed<-"./example.bed"
-# File.Bim<-"./example.bim"
-# File.Fam<-"./example.fam"
-# File.SetID<-"./example.SetID"
-# File.SSD<-"./example.SSD"
-# File.Info<-"./example.SSD.info"
-
-# Generate SSD file
-# To use binary ped files, you have to generate SSD file first.
-# If you already have a SSD file, you do not need to call this function.
-# Generate_SSD_SetID(File.Bed, File.Bim, File.Fam, File.SetID, File.SSD, File.Info)
-
-# SSD.INFO<-Open_SSD(File.SSD, File.Info)
-# Number of samples
-# SSD.INFO$nSample
-# Number of Sets
-# SSD.INFO$nSets
-
-## Fit the null model
-# Y: outcomes, n by 1 matrix where n is the total number of observations
-# X: covariates, n by p matrix
-# E: covariates, n by 1 matrix
-# time: describe longitudinal structure, n by 2 matrix
-# result.prelim<-GEI.prelim(Y,time,E,X=X)
-
-## Test all regions
-# out_all<-GEI.SSD.All(SSD.INFO, result.prelim, MinP.adjust=0.95)
-
-# Example result
-# out.all$results
-#      SetID   P.value P.value_MinP N.Marker
-# 1  GENE_01 0.5617291  1.000000000       94
-# 2  GENE_02 0.8079711  1.000000000       84
-# 3  GENE_03 0.1046738  0.004664728      108
-# 4  GENE_04 0.5976760  1.000000000      101
-# 5  GENE_05 0.3240141  1.000000000      103
-# 6  GENE_06 0.1277916  0.641227316       94
-# 7  GENE_07 0.6957561  1.000000000      104
-# 8  GENE_08 0.7630369  0.151874693       96
-# 9  GENE_09 0.7164281  0.863155784      100
-# 10 GENE_10 0.7292435  0.070854665      100
-
-# out.all$results.single
-#     Region.name SNP.name                MAF              p.value
-# 1       GENE_01  SNP0056              0.097     0.72366448267218
-# 2       GENE_01  SNP0083               0.11    0.814563709041184
-# 3       GENE_01  SNP0035              0.097    0.999162315393064
-# ...
-
-
-}
 % Add one or more standard keywords, see file 'KEYWORDS' in the
 % R documentation directory.
 \keyword{plink_test_all}

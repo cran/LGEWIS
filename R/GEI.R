@@ -82,7 +82,6 @@ GEI.test<-function(result.prelim,G,Gsub.id=NULL,G.method='wPCA',G.df=floor(sqrt(
   G.df<-min(G.df,ncol(G))
   if (G.method=='PCA'){G.adj<-GEI.PCA(time,G,G.df)}
   if (G.method=='wPCA'){G.adj<-GEI.wPCA(Y.res0,time,G,G.df)}
-  if (G.method=='PLS'){G.adj<-GEI.PLS(Y.res0,time,G,G.df)}
   if (G.method=='R2'){G.adj<-GEI.R2(Y.res0,time,G,G.df)}
 
   ## Fit null model using GEE
@@ -239,19 +238,6 @@ GEI.Score<-function(nullgee,Y,time,Z.A,Z.I,corstr) #Z.A does not include the int
 #   Type-I Error Control: adjustment of G
 ############################################
 
-GEI.PLS<-function(outcome,time,Z,ncomp=5)#note: long form G is the imput
-{
-  Iter<-TRUE;
-  if (ncomp==ncol(Z)){index<-rep(1,ncol(Z));G.adj<-Z;Iter=FALSE}
-  if (ncomp==0){G.adj<-NULL;Iter=FALSE}
-  if (Iter==TRUE){  #for cases that ncomp is a number and Iter is still true
-    PLS.fit<-plsr(outcome~Z,ncomp=ncomp,validation='none')
-    PLS.scores<-PLS.fit$scores
-    G.adj<-PLS.fit$scores[,1:ncomp]
-  }
-  return(G.adj)
-}
-
 GEI.wPCA<-function(outcome,time,G,ncomp=5)
 {
   cluster.id<-unique(time[,1]);n.G<-ncol(G)
@@ -326,7 +312,7 @@ Get.inv.sqrt<-function(A){
   a.eig <- eigen(A,symmetric=TRUE)
   ID1<-which(a.eig$values > 0)
   if(length(ID1)== 0){stop("Error to obtain matrix square!")}
-  a.sqrt <- a.eig$vectors[,ID1] %*% diag(sqrt(a.eig$values[ID1])^-2) %*% t(a.eig$vectors[,ID1])
+  a.sqrt <- a.eig$vectors[,ID1] %*% diag(sqrt(a.eig$values[ID1])^-1,length(ID1)) %*% t(a.eig$vectors[,ID1])
   return(a.sqrt)
 }
 #Time similarity
